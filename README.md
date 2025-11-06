@@ -1,6 +1,4 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/hfLD_40C)
-
-# Assignment 4 - Frontend Design
+# Assignment 5 - Frontend Design
 
 ## Student Information
 
@@ -45,3 +43,8 @@ src/
 └── services/
 └── api.ts # JSON Placeholder API service
 \`\`\`
+
+## Testing & Build
+
+- `npm test -- --run` – runs Vitest logic suite with coverage reports in `coverage/`
+- `npm run build` – compiles the production bundle with Vite

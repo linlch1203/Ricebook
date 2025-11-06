@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Profile.css";
-import { User } from "../../services/api";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import {
+  logout,
+  selectCurrentUser,
+  updateProfile,
+} from "../../features/auth/authSlice";
+import { resetArticles } from "../../features/articles/articlesSlice";
 
-interface ProfileProps {
-  currentUser: User | null;
-  onLogout: () => void;
-}
-
-const Profile = ({ currentUser, onLogout }: ProfileProps) => {
+const Profile = () => {
+  const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(selectCurrentUser);
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState("");
@@ -88,6 +91,15 @@ const Profile = ({ currentUser, onLogout }: ProfileProps) => {
     }
 
     // Update would happen here (not persistent for this assignment)
+    dispatch(
+      updateProfile({
+        name: displayName,
+        email,
+        phone,
+        zipcode,
+        password,
+      })
+    );
     setSuccess("Profile updated successfully!");
 
     // Clear password fields
@@ -96,7 +108,8 @@ const Profile = ({ currentUser, onLogout }: ProfileProps) => {
   };
 
   const handleLogout = () => {
-    onLogout();
+    dispatch(logout());
+    dispatch(resetArticles());
     navigate("/");
   };
 

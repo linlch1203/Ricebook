@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -9,50 +9,38 @@ import "./App.css";
 import Landing from "./components/auth/Landing";
 import Main from "./components/main/Main";
 import Profile from "./components/profile/Profile";
-import { User, fetchUsers } from "./services/api";
+import { useAppDispatch, useAppSelector } from "./app/hooks";
+import {
+  loadUsers,
+  selectAuthStatus,
+  selectCurrentUser,
+} from "./features/auth/authSlice";
 
 function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(selectCurrentUser);
+  const authStatus = useAppSelector(selectAuthStatus);
 
   useEffect(() => {
-    // Load users from JSON Placeholder
-    const loadUsers = async () => {
-      try {
-        const loadedUsers = await fetchUsers();
-        setUsers(loadedUsers);
-      } catch (error) {
-        console.error("Error loading users:", error);
-      }
-    };
-    loadUsers();
-  }, []);
+    if (authStatus === "idle") {
+      dispatch(loadUsers());
+    }
+  }, [authStatus, dispatch]);
 
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-  };
+  const isAuthResolving = authStatus === "idle" || authStatus === "loading";
 
   return (
     <Router>
       <div className="App">
         <Routes>
-          <Route
-            path="/"
-            element={<Landing users={users} onLogin={handleLogin} />}
-          />
+          <Route path="/" element={<Landing />} />
           <Route
             path="/main"
             element={
-              currentUser ? (
-                <Main
-                  currentUser={currentUser}
-                  users={users}
-                  onLogout={handleLogout}
-                />
+              isAuthResolving ? (
+                <div className="app-loader">Loading...</div>
+              ) : currentUser ? (
+                <Main />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -61,8 +49,10 @@ function App() {
           <Route
             path="/profile"
             element={
-              currentUser ? (
-                <Profile currentUser={currentUser} onLogout={handleLogout} />
+              isAuthResolving ? (
+                <div className="app-loader">Loading...</div>
+              ) : currentUser ? (
+                <Profile />
               ) : (
                 <Navigate to="/" replace />
               )

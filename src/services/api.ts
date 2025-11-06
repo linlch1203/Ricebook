@@ -26,6 +26,14 @@ export interface Post {
   body: string;
 }
 
+export interface Comment {
+  postId: number;
+  id: number;
+  name: string;
+  email: string;
+  body: string;
+}
+
 export const fetchUsers = async (): Promise<User[]> => {
   const response = await fetch(`${API_BASE}/users`);
   return response.json();
@@ -43,5 +51,12 @@ export const fetchUserPosts = async (userId: number): Promise<Post[]> => {
 
 export const fetchUser = async (userId: number): Promise<User> => {
   const response = await fetch(`${API_BASE}/users/${userId}`);
+  return response.json();
+};
+
+export const fetchCommentsByPostId = async (
+  postId: number
+): Promise<Comment[]> => {
+  const response = await fetch(`${API_BASE}/comments?postId=${postId}`);
   return response.json();
 };

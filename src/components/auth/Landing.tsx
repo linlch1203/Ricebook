@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Landing.css";
-import { User } from "../../services/api";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import {
+  login,
+  register,
+  resetAuthErrors,
+  selectCurrentUser,
+  selectLoginError,
+  selectRegistrationError,
+  selectUsers,
+} from "../../features/auth/authSlice";
 
-interface LandingProps {
-  users: User[];
-  onLogin: (user: User) => void;
-}
-
-const Landing = ({ users, onLogin }: LandingProps) => {
+const Landing = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const users = useAppSelector(selectUsers);
+  const currentUser = useAppSelector(selectCurrentUser);
+  const loginError = useAppSelector(selectLoginError);
+  const registrationError = useAppSelector(selectRegistrationError);
 
   // Login form state
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
 
   // Registration form state
   const [regName, setRegName] = useState("");
@@ -23,28 +31,27 @@ const Landing = ({ users, onLogin }: LandingProps) => {
   const [regZipcode, setRegZipcode] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regPasswordConfirm, setRegPasswordConfirm] = useState("");
-  const [regError, setRegError] = useState("");
+  const [registrationMessage, setRegistrationMessage] = useState<string>("");
+
+  const suggestedUsernames = useMemo(
+    () =>
+      users
+        .slice(0, 5)
+        .map((user) => user.username)
+        .join(", "),
+    [users]
+  );
+
+  useEffect(() => {
+    if (currentUser) {
+      navigate("/main");
+    }
+  }, [currentUser, navigate]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError("");
-
-    // Find user by username
-    const user = users.find((u) => u.username === loginUsername);
-
-    if (!user) {
-      setLoginError("User not found");
-      return;
-    }
-
-    // Password is the street name for JSON placeholder users
-    if (loginPassword !== user.address.street) {
-      setLoginError("Invalid password");
-      return;
-    }
-
-    onLogin(user);
-    navigate("/main");
+    dispatch(resetAuthErrors());
+    dispatch(login({ username: loginUsername, password: loginPassword }));
   };
 
   const validateEmail = (email: string) => {
@@ -64,60 +71,49 @@ const Landing = ({ users, onLogin }: LandingProps) => {
 
   const handleRegistration = (e: React.FormEvent) => {
     e.preventDefault();
-    setRegError("");
+    setRegistrationMessage("");
+    dispatch(resetAuthErrors());
 
     // Validation
     if (!regName || regName.length < 2) {
-      setRegError("Name must be at least 2 characters");
+      setRegistrationMessage("Name must be at least 2 characters");
       return;
     }
 
     if (!validateEmail(regEmail)) {
-      setRegError("Invalid email format");
+      setRegistrationMessage("Invalid email format");
       return;
     }
 
     if (!validatePhone(regPhone)) {
-      setRegError("Phone must be in format: 123-456-7890");
+      setRegistrationMessage("Phone must be in format: 123-456-7890");
       return;
     }
 
     if (!validateZipcode(regZipcode)) {
-      setRegError("Zipcode must be 5 digits");
+      setRegistrationMessage("Zipcode must be 5 digits");
       return;
     }
 
     if (regPassword.length < 6) {
-      setRegError("Password must be at least 6 characters");
+      setRegistrationMessage("Password must be at least 6 characters");
       return;
     }
 
     if (regPassword !== regPasswordConfirm) {
-      setRegError("Passwords do not match");
+      setRegistrationMessage("Passwords do not match");
       return;
     }
 
-    // Create new user object (not persistent for this assignment)
-    const newUser: User = {
-      id: users.length + 1,
-      name: regName,
-      username: regName.toLowerCase().replace(/\s/g, ""),
-      email: regEmail,
-      address: {
-        street: regPassword, // Store password as street for consistency
-        suite: "",
-        city: "",
+    dispatch(
+      register({
+        name: regName,
+        email: regEmail,
+        phone: regPhone,
         zipcode: regZipcode,
-      },
-      phone: regPhone,
-      company: {
-        name: "",
-        catchPhrase: "New user here!",
-      },
-    };
-
-    onLogin(newUser);
-    navigate("/main");
+        password: regPassword,
+      })
+    );
   };
 
   return (
@@ -142,7 +138,7 @@ const Landing = ({ users, onLogin }: LandingProps) => {
                 placeholder="Enter username"
                 required
               />
-              <small>Try: Bret, Antonette, Samantha, etc.</small>
+              <small>Try: {suggestedUsernames || "loading users..."}</small>
             </div>
             <div className="form-group">
               <label htmlFor="password">Password</label>
@@ -239,7 +235,11 @@ const Landing = ({ users, onLogin }: LandingProps) => {
                 required
               />
             </div>
-            {regError && <div className="error-message">{regError}</div>}
+            {(registrationMessage || registrationError) && (
+              <div className="error-message">
+                {registrationMessage || registrationError}
+              </div>
+            )}
             <button type="submit" className="btn btn-primary">
               Register
             </button>

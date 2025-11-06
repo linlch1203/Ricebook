@@ -1,116 +1,85 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Main.css";
-import { User, Post, fetchUserPosts } from "../../services/api";
+import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import {
+  logout,
+  selectCurrentUser,
+  selectHeadline,
+  selectUsers,
+  updateHeadline,
+} from "../../features/auth/authSlice";
+import {
+  addFollowerByUsername,
+  addLocalArticle,
+  filterByKeyword,
+  initializeFeed,
+  removeFollower,
+  resetArticles,
+  selectAllArticles,
+  selectArticlesError,
+  selectArticlesStatus,
+  selectFilteredArticles,
+  selectFollowingIds,
+} from "../../features/articles/articlesSlice";
 
-interface MainProps {
-  currentUser: User | null;
-  users: User[];
-  onLogout: () => void;
-}
-
-interface Article extends Post {
-  author?: string;
-  timestamp?: Date;
-  image?: string;
-}
-
-const Main = ({ currentUser, users, onLogout }: MainProps) => {
+const Main = () => {
   const navigate = useNavigate();
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
+  const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(selectCurrentUser);
+  const headline = useAppSelector(selectHeadline);
+  const users = useAppSelector(selectUsers);
+  const allArticles = useAppSelector(selectAllArticles);
+  const filteredArticles = useAppSelector(selectFilteredArticles);
+  const followingIds = useAppSelector(selectFollowingIds);
+  const articlesStatus = useAppSelector(selectArticlesStatus);
+  const articlesError = useAppSelector(selectArticlesError);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [newPostText, setNewPostText] = useState("");
-  const [headline, setHeadline] = useState("");
   const [newHeadline, setNewHeadline] = useState("");
-  const [following, setFollowing] = useState<User[]>([]);
   const [newFollowUsername, setNewFollowUsername] = useState("");
-
-  // Random images for posts
-  const randomImages = [
-    "https://picsum.photos/400/300?random=1",
-    "https://picsum.photos/400/300?random=2",
-    "https://picsum.photos/400/300?random=3",
-  ];
 
   useEffect(() => {
     if (!currentUser) {
       navigate("/");
+    }
+  }, [currentUser, navigate]);
+
+  useEffect(() => {
+    if (!currentUser) {
       return;
     }
+    dispatch(resetArticles());
+    dispatch(initializeFeed());
+  }, [currentUser?.id, dispatch]);
 
-    // Set initial headline
-    setHeadline(currentUser.company.catchPhrase);
-    setNewHeadline(currentUser.company.catchPhrase);
+  useEffect(() => {
+    setNewHeadline(headline);
+  }, [headline]);
 
-    // Load posts for current user
-    loadPosts();
-
-    // Set up following list (next 3 users)
-    const followingList = [];
-    for (let i = 1; i <= 3; i++) {
-      const nextId = (currentUser.id % 10) + i;
-      const followedUser = users.find((u) => u.id === nextId);
-      if (followedUser) {
-        followingList.push(followedUser);
-      }
-    }
-    setFollowing(followingList);
-  }, [currentUser, users, navigate]);
-
-  const loadPosts = async () => {
-    if (!currentUser) return;
-
-    try {
-      const posts = await fetchUserPosts(currentUser.id);
-
-      // Add images to first 3 posts and enhance with metadata
-      const enhancedPosts: Article[] = posts
-        .slice(0, 10)
-        .map((post, index) => ({
-          ...post,
-          author: currentUser.username,
-          timestamp: new Date(Date.now() - index * 3600000), // 1 hour apart
-          image: index < 3 ? randomImages[index] : undefined,
-        }));
-
-      setArticles(enhancedPosts);
-      setFilteredArticles(enhancedPosts);
-    } catch (error) {
-      console.error("Error loading posts:", error);
-    }
-  };
+  const followingUsers = useMemo(
+    () => users.filter((user) => followingIds.includes(user.id)),
+    [users, followingIds]
+  );
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (!query.trim()) {
-      setFilteredArticles(articles);
-      return;
-    }
-
-    const filtered = articles.filter(
-      (article) =>
-        article.title.toLowerCase().includes(query.toLowerCase()) ||
-        article.body.toLowerCase().includes(query.toLowerCase()) ||
-        article.author?.toLowerCase().includes(query.toLowerCase())
-    );
-    setFilteredArticles(filtered);
+    dispatch(filterByKeyword(query));
   };
 
   const handlePostArticle = () => {
-    if (!newPostText.trim() || !currentUser) return;
-
-    const newArticle: Article = {
-      userId: currentUser.id,
-      id: Date.now(),
-      title: "New Post",
-      body: newPostText,
-      author: currentUser.username,
-      timestamp: new Date(),
-    };
-
-    setArticles([newArticle, ...articles]);
-    setFilteredArticles([newArticle, ...filteredArticles]);
+    if (!currentUser || !newPostText.trim()) {
+      return;
+    }
+    dispatch(
+      addLocalArticle({
+        body: newPostText.trim(),
+        author: currentUser.username,
+        userId: currentUser.id,
+        headline,
+      })
+    );
     setNewPostText("");
   };
 
@@ -120,54 +89,25 @@ const Main = ({ currentUser, users, onLogout }: MainProps) => {
 
   const handleUpdateHeadline = () => {
     if (newHeadline.trim()) {
-      setHeadline(newHeadline);
+      dispatch(updateHeadline(newHeadline.trim()));
     }
   };
 
   const handleAddFollower = () => {
-    if (!newFollowUsername.trim()) return;
-
-    // Check if already following
-    if (
-      following.some(
-        (user) =>
-          user.username.toLowerCase() === newFollowUsername.toLowerCase()
-      )
-    ) {
-      alert("Already following this user");
+    if (!newFollowUsername.trim()) {
       return;
     }
-
-    // Find user in the list
-    const userToFollow = users.find(
-      (u) => u.username.toLowerCase() === newFollowUsername.toLowerCase()
-    );
-
-    if (userToFollow) {
-      setFollowing([...following, userToFollow]);
-    } else {
-      // Create dummy user for non-existent usernames
-      const dummyUser: User = {
-        id: Date.now(),
-        name: newFollowUsername,
-        username: newFollowUsername,
-        email: "",
-        address: { street: "", suite: "", city: "", zipcode: "" },
-        phone: "",
-        company: { name: "", catchPhrase: "Hello there!" },
-      };
-      setFollowing([...following, dummyUser]);
-    }
-
+    dispatch(addFollowerByUsername(newFollowUsername.trim()));
     setNewFollowUsername("");
   };
 
   const handleUnfollow = (userId: number) => {
-    setFollowing(following.filter((user) => user.id !== userId));
+    dispatch(removeFollower(userId));
   };
 
   const handleLogout = () => {
-    onLogout();
+    dispatch(logout());
+    dispatch(resetArticles());
     navigate("/");
   };
 
@@ -279,7 +219,9 @@ const Main = ({ currentUser, users, onLogout }: MainProps) => {
 
           {/* Articles Feed */}
           <div className="articles-feed">
-            {filteredArticles.length === 0 ? (
+            {articlesStatus === "loading" ? (
+              <p className="no-articles">Loading articles...</p>
+            ) : filteredArticles.length === 0 ? (
               <p className="no-articles">No articles found</p>
             ) : (
               filteredArticles.map((article) => (
@@ -292,21 +234,33 @@ const Main = ({ currentUser, users, onLogout }: MainProps) => {
                     />
                     <div>
                       <strong>{article.author}</strong>
-                      <small>{article.timestamp?.toLocaleString()}</small>
+                      <small>
+                        {new Date(article.timestamp).toLocaleString()}
+                      </small>
                     </div>
                   </div>
                   <h4>{article.title}</h4>
-                  {article.image && (
-                    <img
-                      src={article.image}
-                      alt="Post"
-                      className="article-image"
-                    />
-                  )}
                   <p>{article.body}</p>
                   <div className="article-actions">
                     <button className="btn btn-sm">💬 Comment</button>
                     <button className="btn btn-sm">✏️ Edit</button>
+                  </div>
+                  <div className="article-comments">
+                    {article.comments.length === 0 ? (
+                      <p className="no-comments">No comments yet</p>
+                    ) : (
+                      <details>
+                        <summary>Comments ({article.comments.length})</summary>
+                        <ul>
+                          {article.comments.map((comment) => (
+                            <li key={comment.id}>
+                              <strong>{comment.name}</strong>
+                              <p>{comment.body}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                   </div>
                 </div>
               ))
@@ -318,6 +272,9 @@ const Main = ({ currentUser, users, onLogout }: MainProps) => {
         <div className="sidebar-column">
           <div className="sidebar-card">
             <h3>Following</h3>
+            <p className="following-meta">
+              Showing {filteredArticles.length} of {allArticles.length} articles
+            </p>
             <div className="add-follower">
               <input
                 type="text"
@@ -333,9 +290,12 @@ const Main = ({ currentUser, users, onLogout }: MainProps) => {
                 Add
               </button>
             </div>
+            {articlesError && (
+              <p className="error-message follower-error">{articlesError}</p>
+            )}
 
             <div className="following-list">
-              {following.map((user) => (
+              {followingUsers.map((user) => (
                 <div key={user.id} className="follower-item">
                   <img
                     src={`https://i.pravatar.cc/50?u=${user.id}`}
