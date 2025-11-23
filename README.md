@@ -1,4 +1,4 @@
-# Assignment 5 - Frontend Design
+# Frontend Design
 
 ## Student Information
 
@@ -49,7 +49,7 @@ src/
 - `npm test -- --run` – runs Vitest logic suite with coverage reports in `coverage/`
 - `npm run build` – compiles the production bundle with Vite
 
-## Backend Service (Assignment 6)
+## Backend Service
 
 Backend code lives in `backend/`. It is a standalone Express + MongoDB server (with in-memory fallback for tests) that implements the required endpoints and seeds the grading account.
 
