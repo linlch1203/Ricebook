@@ -9,13 +9,11 @@ import {
   selectCurrentUser,
   selectLoginError,
   selectRegistrationError,
-  selectUsers,
 } from "../../features/auth/authSlice";
 
 const Landing = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const users = useAppSelector(selectUsers);
   const currentUser = useAppSelector(selectCurrentUser);
   const loginError = useAppSelector(selectLoginError);
   const registrationError = useAppSelector(selectRegistrationError);
@@ -25,22 +23,14 @@ const Landing = () => {
   const [loginPassword, setLoginPassword] = useState("");
 
   // Registration form state
-  const [regName, setRegName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regZipcode, setRegZipcode] = useState("");
+  const [regDob, setRegDob] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regPasswordConfirm, setRegPasswordConfirm] = useState("");
   const [registrationMessage, setRegistrationMessage] = useState<string>("");
-
-  const suggestedUsernames = useMemo(
-    () =>
-      users
-        .slice(0, 5)
-        .map((user) => user.username)
-        .join(", "),
-    [users]
-  );
 
   useEffect(() => {
     if (currentUser) {
@@ -75,8 +65,8 @@ const Landing = () => {
     dispatch(resetAuthErrors());
 
     // Validation
-    if (!regName || regName.length < 2) {
-      setRegistrationMessage("Name must be at least 2 characters");
+    if (!regUsername || regUsername.length < 2) {
+      setRegistrationMessage("Username must be at least 2 characters");
       return;
     }
 
@@ -107,10 +97,11 @@ const Landing = () => {
 
     dispatch(
       register({
-        name: regName,
+        username: regUsername,
         email: regEmail,
         phone: regPhone,
         zipcode: regZipcode,
+        dob: regDob,
         password: regPassword,
       })
     );
@@ -138,7 +129,6 @@ const Landing = () => {
                 placeholder="Enter username"
                 required
               />
-              <small>Try: {suggestedUsernames || "loading users..."}</small>
             </div>
             <div className="form-group">
               <label htmlFor="password">Password</label>
@@ -147,16 +137,30 @@ const Landing = () => {
                 id="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="Enter password (street name)"
+                placeholder="Enter password"
                 required
               />
-              <small>Hint: Password is the street name</small>
             </div>
             {loginError && <div className="error-message">{loginError}</div>}
             <button type="submit" className="btn btn-primary">
               Log In
             </button>
           </form>
+          <div className="google-login" style={{ marginTop: "10px" }}>
+            <button
+              className="btn"
+              style={{
+                backgroundColor: "#db4437",
+                color: "white",
+                width: "100%",
+              }}
+              onClick={() =>
+                (window.location.href = "http://localhost:3000/auth/google")
+              }
+            >
+              Login with Google
+            </button>
+          </div>
         </div>
 
         {/* Divider */}
@@ -169,13 +173,13 @@ const Landing = () => {
           <h2>Create Account</h2>
           <form onSubmit={handleRegistration}>
             <div className="form-group">
-              <label htmlFor="reg-name">Display Name</label>
+              <label htmlFor="reg-username">Username</label>
               <input
                 type="text"
-                id="reg-name"
-                value={regName}
-                onChange={(e) => setRegName(e.target.value)}
-                placeholder="Your name"
+                id="reg-username"
+                value={regUsername}
+                onChange={(e) => setRegUsername(e.target.value)}
+                placeholder="Your username"
                 required
               />
             </div>
@@ -198,6 +202,16 @@ const Landing = () => {
                 value={regPhone}
                 onChange={(e) => setRegPhone(e.target.value)}
                 placeholder="123-456-7890"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="reg-dob">Date of Birth</label>
+              <input
+                type="date"
+                id="reg-dob"
+                value={regDob}
+                onChange={(e) => setRegDob(e.target.value)}
                 required
               />
             </div>

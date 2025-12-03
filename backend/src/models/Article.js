@@ -15,6 +15,7 @@ const articleSchema = new mongoose.Schema(
     pid: { type: Number, unique: true, required: true },
     author: { type: String, required: true },
     text: { type: String, required: true },
+    image: { type: String },
     date: { type: Date, default: Date.now },
     comments: { type: [commentSchema], default: [] },
   },

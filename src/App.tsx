@@ -11,7 +11,7 @@ import Main from "./components/main/Main";
 import Profile from "./components/profile/Profile";
 import { useAppDispatch, useAppSelector } from "./app/hooks";
 import {
-  loadUsers,
+  checkAuth,
   selectAuthStatus,
   selectCurrentUser,
 } from "./features/auth/authSlice";
@@ -23,7 +23,7 @@ function App() {
 
   useEffect(() => {
     if (authStatus === "idle") {
-      dispatch(loadUsers());
+      dispatch(checkAuth());
     }
   }, [authStatus, dispatch]);
 

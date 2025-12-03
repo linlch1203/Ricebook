@@ -1,105 +1,98 @@
-# Assignment 5 - Frontend Design
+# Assignment 6 - Backend Implementation
 
 ## Student Information
 
 - **netid**: cl278
 - **frontend**: https://outrageous-table.surge.sh
+- **backend**: https://cl278-backend-ee56d2df6a76.herokuapp.com
 
-## JSON Placeholder Users
+## Test User
 
-You can log in with any of the 10 JSON Placeholder users. Use their username and street name as password:
-
-| Username         | Password (Street Name) |
-| ---------------- | ---------------------- |
-| Bret             | Kulas Light            |
-| Antonette        | Victor Plains          |
-| Samantha         | Douglas Extension      |
-| Karianne         | Hoeger Mall            |
-| Kamren           | Skiles Walks           |
-| Leopoldo_Corkery | Norberto Crossing      |
-| Elwyn.Skiles     | Rex Trail              |
-| Maxime_Nienow    | Ellsworth Summit       |
-| Delphine         | Dayna Park             |
-| Moriah.Stanton   | Kattie Turnpike        |
+- **Username**: `testuser1`
+- **Password**: `12345678`
 
 ## Project Structure
 
 \`\`\`
+backend/
+├── src/
+│ ├── auth.js # Authentication routes (login, register, logout, google)
+│ ├── articles.js # Article routes (get, post, put)
+│ ├── profile.js # Profile routes (get, put)
+│ ├── following.js # Following routes (get, put, delete)
+│ ├── passport.js # Passport configuration
+│ ├── uploadCloudinary.js # Cloudinary middleware
+│ └── ...
+├── index.js # Main server entry point
+└── ...
 src/
-├── App.tsx # Main app with routing
-├── App.css
-├── index.css
-├── main.tsx
-├── components/
-│ ├── auth/
-│ │ ├── Landing.tsx # Landing/Login/Registration page
-│ │ └── Landing.css
-│ ├── main/
-│ │ ├── Main.tsx # Main feed page
-│ │ └── Main.css
-│ └── profile/
-│ ├── Profile.tsx # Profile edit page
-│ └── Profile.css
-└── services/
-└── api.ts # JSON Placeholder API service
+├── ... (Frontend source code)
 \`\`\`
 
-## Testing & Build
+## Features Implemented
 
-- `npm test -- --run` – runs Vitest logic suite with coverage reports in `coverage/`
-- `npm run build` – compiles the production bundle with Vite
+1.  **Authentication**:
 
-## Backend Service (Assignment 6)
+    - Local registration and login with salt+hash (md5).
+    - Google OAuth 2.0 login.
+    - Session management via HTTP-only cookies.
+    - Logout clears session and cookie.
+    - Account linking/unlinking (Google).
 
-Backend code lives in `backend/`. It is a standalone Express + MongoDB server (with in-memory fallback for tests) that implements the required endpoints and seeds the grading account.
+2.  **Articles**:
 
-- **Backend test user** – username `joey`, password `pass`
-- **Local URL** – `http://localhost:3000`
-- **Production URL** – `https://cl278-backend-ee56d2df6a76.herokuapp.com`
+    - Fetch articles for logged-in user and followed users.
+    - Pagination support (`?page=X&limit=Y`).
+    - Create new articles with text and optional image (Cloudinary).
+    - Edit article text.
+    - Add and edit comments.
 
-### Backend commands
+3.  **Profile**:
 
-```bash
-cd backend
-npm install
-npm run dev       # start with nodemon
-npm start         # start once
-npm test          # run jasmine + junit-report.xml
-```
+    - View and update headline, email, zipcode, phone, display name.
+    - Upload/update profile avatar (Cloudinary).
+    - View and update following list.
 
-The Jasmine flow registers a random `testUser<ID>`, logs in, posts an article, verifies `/articles` and `/articles/:id`, updates the headline, and ensures `/articles` is blocked after logout. A `junit-report.xml` file is emitted for submission.
+4.  **Persistence**:
+    - MongoDB Atlas used for data storage.
+    - Cloudinary used for image storage.
 
-### Deploying to Heroku
+## How to Run
 
-```bash
-cd backend
-heroku create cl278-backend
-heroku buildpacks:set heroku/nodejs -a cl278-backend
-heroku config:set MONGODB_URI="mongodb+srv://cl278_db_user:dVqQw8sEisQdRNcQ@hans.xpuov71.mongodb.net/ricebook?retryWrites=true&w=majority&appName=Hans" -a cl278-backend
-git init && git add . && git commit -m "Backend"
-git push heroku main
-heroku ps:scale web=1 -a cl278-backend
-```
+### Backend
 
-After deployment, verify `/register`, `/login`, `/articles`, `/article`, `/headline`, and `/logout` on the Heroku URL and update the Production URL noted above.
+1.  Navigate to `backend/` directory.
+2.  Install dependencies: `npm install`.
+3.  Create a `.env` file with:
+    ```
+    MONGODB_URI=<your_mongodb_uri>
+    CLOUDINARY_URL=<your_cloudinary_url>
+    GOOGLE_CLIENT_ID=<your_google_client_id>
+    GOOGLE_CLIENT_SECRET=<your_google_client_secret>
+    FRONTEND_URL=http://localhost:5173
+    ```
+4.  Start server: `npm start` (or `npm run dev` for nodemon).
+5.  Run tests: `npm test`.
 
-### Deployment verification (2025-11-19)
+### Frontend
 
-Hit the live backend at `https://cl278-backend-ee56d2df6a76.herokuapp.com`:
+1.  Navigate to root directory.
+2.  Install dependencies: `npm install`.
+3.  Start dev server: `npm run dev`.
 
-```bash
-curl -c cookie -H "Content-Type: application/json" \
-	-d '{"username":"joey","password":"pass"}' \
-	https://cl278-backend-ee56d2df6a76.herokuapp.com/login
-curl -b cookie https://cl278-backend-ee56d2df6a76.herokuapp.com/articles
-curl -b cookie -H "Content-Type: application/json" \
-	-d '{"text":"hello from curl","image":""}' \
-	https://cl278-backend-ee56d2df6a76.herokuapp.com/article
-curl -b cookie https://cl278-backend-ee56d2df6a76.herokuapp.com/articles/1
-curl -b cookie -X PUT -H "Content-Type: application/json" \
-	-d '{"headline":"new headline from curl"}' \
-	https://cl278-backend-ee56d2df6a76.herokuapp.com/headline
-curl -b cookie -X PUT https://cl278-backend-ee56d2df6a76.herokuapp.com/logout
-```
+## Testing
 
-Responses confirmed successful login, article CRUD, headline update, and logout. All Jasmine specs pass locally via `npm test` (7 specs, 0 failures) which refreshed `backend/junit-report.xml`.
+- **Backend Tests**: Run `npm test` in `backend/` folder.
+- **Manual Testing**:
+  - Register a new user.
+  - Log in.
+  - Update status headline.
+  - Post an article with an image.
+  - Follow a user (e.g., `joey`).
+  - Check feed for your posts and followed user's posts.
+  - Edit your post.
+  - Comment on a post.
+  - Edit your comment.
+  - Go to Profile page and update avatar.
+  - Link Google account (if configured).
+  - Log out.

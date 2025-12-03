@@ -1,25 +1,23 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { User, fetchUsers } from "../../services/api";
 import {
-  loadStoredCurrentUserId,
-  persistCurrentUserId,
-  loadStoredCustomUsers,
-  persistCustomUsers,
-  loadStoredHeadlines,
-  persistHeadlines,
-} from "./storage";
+  User,
+  login as apiLogin,
+  register as apiRegister,
+  logout as apiLogout,
+  fetchProfile,
+  updateHeadline as apiUpdateHeadline,
+  updateAvatar as apiUpdateAvatar,
+  updateEmail as apiUpdateEmail,
+  updatePhone as apiUpdatePhone,
+  updateZipcode as apiUpdateZipcode,
+  updatePassword as apiUpdatePassword,
+} from "../../services/api";
 
-export interface LoginPayload {
-  username: string;
-  password: string;
-}
-
-export interface RegisterPayload {
-  name: string;
-  email: string;
-  phone: string;
-  zipcode: string;
-  password: string;
+export interface AuthState {
+  user: User | null;
+  status: "idle" | "loading" | "succeeded" | "failed";
+  loginError: string | null;
+  registrationError: string | null;
 }
 
 export interface ProfileUpdatePayload {
@@ -30,196 +28,154 @@ export interface ProfileUpdatePayload {
   password?: string;
 }
 
-export interface AuthState {
-  users: User[];
-  currentUserId: number | null;
-  status: "idle" | "loading" | "succeeded" | "failed";
-  loginError: string | null;
-  registrationError: string | null;
-  headlineByUserId: Record<number, string>;
-  placeholderUserIds: number[];
-  customUsers: User[];
-}
-
 const initialState: AuthState = {
-  users: [],
-  currentUserId: null,
+  user: null,
   status: "idle",
   loginError: null,
   registrationError: null,
-  headlineByUserId: {},
-  placeholderUserIds: [],
-  customUsers: [],
 };
 
-export const loadUsers = createAsyncThunk<User[]>(
-  "auth/loadUsers",
-  async () => {
-    const users = await fetchUsers();
-    return users;
+export const login = createAsyncThunk(
+  "auth/login",
+  async ({ username, password }: any, { rejectWithValue }) => {
+    try {
+      await apiLogin(username, password);
+      const user = await fetchProfile();
+      return user;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
   }
 );
 
-const normalizeUsername = (username: string) => username.trim().toLowerCase();
+export const register = createAsyncThunk(
+  "auth/register",
+  async (payload: any, { rejectWithValue }) => {
+    try {
+      await apiRegister(payload);
+      // Auto login after register? Or just return success?
+      // The backend register returns { result: 'success', username }
+      // We might need to login separately or the backend sets cookie on register?
+      // Backend register does NOT set cookie.
+      // So we need to login.
+      await apiLogin(payload.username, payload.password);
+      const user = await fetchProfile();
+      return user;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
 
-type WithAuthState = {
-  auth: AuthState;
-} & Record<string, unknown>;
+export const logout = createAsyncThunk("auth/logout", async () => {
+  await apiLogout();
+});
+
+export const updateHeadline = createAsyncThunk(
+  "auth/updateHeadline",
+  async (headline: string, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdateHeadline(headline);
+      return res.headline;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updateAvatar = createAsyncThunk(
+  "auth/updateAvatar",
+  async (formData: FormData, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdateAvatar(formData);
+      return res.avatar;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updateEmail = createAsyncThunk(
+  "auth/updateEmail",
+  async (email: string, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdateEmail(email);
+      return res.email;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updatePhone = createAsyncThunk(
+  "auth/updatePhone",
+  async (phone: string, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdatePhone(phone);
+      return res.phone;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updateZipcode = createAsyncThunk(
+  "auth/updateZipcode",
+  async (zipcode: string, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdateZipcode(zipcode);
+      return res.zipcode;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updatePassword = createAsyncThunk(
+  "auth/updatePassword",
+  async (password: string, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdatePassword(password);
+      return res.result;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+export const updateProfile = createAsyncThunk(
+  "auth/updateProfile",
+  async (payload: ProfileUpdatePayload, { rejectWithValue }) => {
+    try {
+      if (payload.email) await apiUpdateEmail(payload.email);
+      if (payload.phone) await apiUpdatePhone(payload.phone);
+      if (payload.zipcode) await apiUpdateZipcode(payload.zipcode);
+      if (payload.password) await apiUpdatePassword(payload.password);
+      return payload;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// Check if user is already logged in (e.g. on refresh)
+// We can try to fetch profile. If it fails (401), we are not logged in.
+export const checkAuth = createAsyncThunk(
+  "auth/checkAuth",
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await fetchProfile();
+      return user;
+    } catch (err) {
+      return rejectWithValue("Not logged in");
+    }
+  }
+);
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    login(state, action: PayloadAction<LoginPayload>) {
-      const { username, password } = action.payload;
-      const normalized = normalizeUsername(username);
-      const user = state.users.find(
-        (candidate) => normalizeUsername(candidate.username) === normalized
-      );
-
-      if (!user) {
-        state.loginError = "Invalid username or password";
-        return;
-      }
-
-      const expectedPassword = user.address.street;
-      if (password !== expectedPassword) {
-        state.loginError = "Invalid username or password";
-        return;
-      }
-
-      state.currentUserId = user.id;
-      state.loginError = null;
-      state.registrationError = null;
-      if (!state.headlineByUserId[user.id]) {
-        state.headlineByUserId[user.id] = user.company.catchPhrase;
-      }
-      persistCurrentUserId(user.id);
-      persistHeadlines(state.headlineByUserId);
-    },
-    logout(state) {
-      state.currentUserId = null;
-      state.loginError = null;
-      persistCurrentUserId(null);
-    },
-    register(state, action: PayloadAction<RegisterPayload>) {
-      const { name, email, phone, zipcode, password } = action.payload;
-      const generatedUsername = normalizeUsername(name.replace(/\s+/g, ""));
-
-      const existingUser = state.users.find(
-        (user) => normalizeUsername(user.username) === generatedUsername
-      );
-
-      if (existingUser) {
-        state.registrationError = "Username already exists";
-        return;
-      }
-
-      const nextId = state.users.length
-        ? Math.max(...state.users.map((user) => user.id)) + 1
-        : 1;
-
-      const newUser: User = {
-        id: nextId,
-        name,
-        username: generatedUsername,
-        email,
-        address: {
-          street: password,
-          suite: "",
-          city: "",
-          zipcode,
-        },
-        phone,
-        company: {
-          name: "",
-          catchPhrase: "New here!",
-        },
-      };
-
-      state.users.push(newUser);
-      state.customUsers.push(newUser);
-      state.currentUserId = newUser.id;
-      state.registrationError = null;
-      state.loginError = null;
-      state.headlineByUserId[newUser.id] = newUser.company.catchPhrase;
-      persistCustomUsers(state.customUsers);
-      persistCurrentUserId(newUser.id);
-      persistHeadlines(state.headlineByUserId);
-    },
-    updateHeadline(state, action: PayloadAction<string>) {
-      const headline = action.payload.trim();
-      if (!state.currentUserId || !headline) {
-        return;
-      }
-
-      state.headlineByUserId[state.currentUserId] = headline;
-      const user = state.users.find(
-        (candidate) => candidate.id === state.currentUserId
-      );
-      if (user) {
-        user.company = {
-          ...user.company,
-          catchPhrase: headline,
-        };
-        if (!state.placeholderUserIds.includes(user.id)) {
-          state.customUsers = state.customUsers.map((candidate) =>
-            candidate.id === user.id
-              ? {
-                  ...candidate,
-                  company: { ...candidate.company, catchPhrase: headline },
-                }
-              : candidate
-          );
-          persistCustomUsers(state.customUsers);
-        }
-      }
-      persistHeadlines(state.headlineByUserId);
-    },
-    updateProfile(state, action: PayloadAction<ProfileUpdatePayload>) {
-      if (!state.currentUserId) {
-        return;
-      }
-
-      const user = state.users.find(
-        (candidate) => candidate.id === state.currentUserId
-      );
-      if (!user) {
-        return;
-      }
-
-      const { name, email, phone, zipcode, password } = action.payload;
-      if (name) {
-        user.name = name;
-      }
-      if (email) {
-        user.email = email;
-      }
-      if (phone) {
-        user.phone = phone;
-      }
-      if (zipcode) {
-        user.address = { ...user.address, zipcode };
-      }
-      if (password) {
-        user.address = { ...user.address, street: password };
-      }
-      if (!state.placeholderUserIds.includes(user.id)) {
-        state.customUsers = state.customUsers.map((candidate) =>
-          candidate.id === user.id
-            ? {
-                ...candidate,
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                address: { ...user.address },
-                company: { ...user.company },
-              }
-            : candidate
-        );
-        persistCustomUsers(state.customUsers);
-      }
-    },
     resetAuthErrors(state) {
       state.loginError = null;
       state.registrationError = null;
@@ -227,85 +183,95 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(loadUsers.pending, (state) => {
+      .addCase(login.pending, (state) => {
+        state.status = "loading";
+        state.loginError = null;
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload;
+        state.loginError = null;
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.status = "failed";
+        state.loginError = action.payload as string;
+      })
+      .addCase(register.pending, (state) => {
+        state.status = "loading";
+        state.registrationError = null;
+      })
+      .addCase(register.fulfilled, (state, action) => {
+        state.status = "succeeded";
+        state.user = action.payload;
+        state.registrationError = null;
+      })
+      .addCase(register.rejected, (state, action) => {
+        state.status = "failed";
+        state.registrationError = action.payload as string;
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.user = null;
+        state.status = "idle";
+      })
+      .addCase(checkAuth.pending, (state) => {
         state.status = "loading";
       })
-      .addCase(loadUsers.fulfilled, (state, action) => {
+      .addCase(checkAuth.fulfilled, (state, action) => {
+        state.user = action.payload;
         state.status = "succeeded";
-        state.users = [...action.payload];
-        state.headlineByUserId = action.payload.reduce<Record<number, string>>(
-          (acc, user) => {
-            acc[user.id] = user.company.catchPhrase;
-            return acc;
-          },
-          {}
-        );
-        state.placeholderUserIds = action.payload.map((user) => user.id);
-
-        const storedHeadlines = loadStoredHeadlines();
-        state.headlineByUserId = {
-          ...state.headlineByUserId,
-          ...storedHeadlines,
-        };
-
-        const storedCustomUsers = loadStoredCustomUsers();
-        state.customUsers = storedCustomUsers;
-        storedCustomUsers.forEach((customUser) => {
-          if (!state.users.find((user) => user.id === customUser.id)) {
-            state.users.push(customUser);
-          } else {
-            state.users = state.users.map((user) =>
-              user.id === customUser.id ? customUser : user
-            );
-          }
-          state.headlineByUserId[customUser.id] =
-            customUser.company.catchPhrase;
-        });
-
-        const storedCurrentUserId = loadStoredCurrentUserId();
-        if (storedCurrentUserId) {
-          const exists = state.users.some(
-            (user) => user.id === storedCurrentUserId
-          );
-          if (exists) {
-            state.currentUserId = storedCurrentUserId;
-          }
+      })
+      .addCase(checkAuth.rejected, (state) => {
+        state.user = null;
+        state.status = "failed";
+      })
+      .addCase(updateHeadline.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.headline = action.payload;
         }
       })
-      .addCase(loadUsers.rejected, (state) => {
-        state.status = "failed";
+      .addCase(updateAvatar.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.avatar = action.payload;
+        }
+      })
+      .addCase(updateEmail.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.email = action.payload;
+        }
+      })
+      .addCase(updatePhone.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.phone = action.payload;
+        }
+      })
+      .addCase(updateZipcode.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.zipcode = action.payload;
+        }
+      })
+      .addCase(updatePassword.fulfilled, (state, action) => {
+        // Password updated
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        if (state.user) {
+          if (action.payload.email) state.user.email = action.payload.email;
+          if (action.payload.phone) state.user.phone = action.payload.phone;
+          if (action.payload.zipcode)
+            state.user.zipcode = action.payload.zipcode;
+        }
       });
   },
 });
 
-export const {
-  login,
-  logout,
-  register,
-  updateHeadline,
-  updateProfile,
-  resetAuthErrors,
-} = authSlice.actions;
+export const { resetAuthErrors } = authSlice.actions;
 
-export const selectUsers = (state: WithAuthState) => state.auth.users;
-export const selectAuthStatus = (state: WithAuthState) => state.auth.status;
-export const selectCurrentUserId = (state: WithAuthState) =>
-  state.auth.currentUserId;
-export const selectCurrentUser = (state: WithAuthState) =>
-  state.auth.users.find((user) => user.id === state.auth.currentUserId) ?? null;
-export const selectLoginError = (state: WithAuthState) => state.auth.loginError;
-export const selectRegistrationError = (state: WithAuthState) =>
+export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectHeadline = (state: { auth: AuthState }) => state.auth.user?.headline;
+export const selectAuthStatus = (state: { auth: AuthState }) =>
+  state.auth.status;
+export const selectLoginError = (state: { auth: AuthState }) =>
+  state.auth.loginError;
+export const selectRegistrationError = (state: { auth: AuthState }) =>
   state.auth.registrationError;
-export const selectHeadline = (state: WithAuthState) => {
-  const currentId = state.auth.currentUserId;
-  if (!currentId) {
-    return "";
-  }
-  return state.auth.headlineByUserId[currentId] ?? "";
-};
-export const selectHeadlineByUserId = (state: WithAuthState, userId: number) =>
-  state.auth.headlineByUserId[userId] ?? "";
-export const selectPlaceholderUserIds = (state: WithAuthState) =>
-  state.auth.placeholderUserIds;
 
 export default authSlice.reducer;

@@ -6,6 +6,8 @@ import {
   logout,
   selectCurrentUser,
   updateProfile,
+  updateAvatar,
+  updateHeadline,
 } from "../../features/auth/authSlice";
 import { resetArticles } from "../../features/articles/articlesSlice";
 
@@ -14,7 +16,7 @@ const Profile = () => {
   const currentUser = useAppSelector(selectCurrentUser);
   const navigate = useNavigate();
 
-  const [displayName, setDisplayName] = useState("");
+  const [headline, setHeadline] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [zipcode, setZipcode] = useState("");
@@ -31,10 +33,10 @@ const Profile = () => {
     }
 
     // Initialize form with current user data
-    setDisplayName(currentUser.name);
-    setEmail(currentUser.email);
-    setPhone(currentUser.phone);
-    setZipcode(currentUser.address.zipcode);
+    setHeadline(currentUser.headline || "");
+    setEmail(currentUser.email || "");
+    setPhone(currentUser.phone || "");
+    setZipcode(currentUser.zipcode || "");
   }, [currentUser, navigate]);
 
   const validateEmail = (email: string) => {
@@ -57,12 +59,6 @@ const Profile = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
-    // Validation
-    if (displayName && displayName.length < 2) {
-      setError("Display name must be at least 2 characters");
-      return;
-    }
 
     if (email && !validateEmail(email)) {
       setError("Invalid email format");
@@ -90,14 +86,16 @@ const Profile = () => {
       }
     }
 
-    // Update would happen here (not persistent for this assignment)
+    if (headline !== currentUser?.headline) {
+      dispatch(updateHeadline(headline));
+    }
+
     dispatch(
       updateProfile({
-        name: displayName,
-        email,
-        phone,
-        zipcode,
-        password,
+        email: email !== currentUser?.email ? email : undefined,
+        phone: phone !== currentUser?.phone ? phone : undefined,
+        zipcode: zipcode !== currentUser?.zipcode ? zipcode : undefined,
+        password: password ? password : undefined,
       })
     );
     setSuccess("Profile updated successfully!");
@@ -105,6 +103,15 @@ const Profile = () => {
     // Clear password fields
     setPassword("");
     setPasswordConfirm("");
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      dispatch(updateAvatar(formData));
+    }
   };
 
   const handleLogout = () => {
@@ -125,11 +132,11 @@ const Profile = () => {
           <h1>RiceBook</h1>
           <div className="navbar-user">
             <img
-              src={`https://i.pravatar.cc/50?u=${currentUser.id}`}
-              alt={currentUser.name}
+              src={currentUser.avatar || "https://via.placeholder.com/50"}
+              alt={currentUser.username}
               className="navbar-avatar"
             />
-            <span>{currentUser.name}</span>
+            <span>{currentUser.username}</span>
             <button
               onClick={() => navigate("/main")}
               className="btn btn-secondary"
@@ -151,8 +158,8 @@ const Profile = () => {
           <div className="profile-picture-section">
             <h3>Profile Picture</h3>
             <img
-              src={`https://i.pravatar.cc/150?u=${currentUser.id}`}
-              alt={currentUser.name}
+              src={currentUser.avatar || "https://via.placeholder.com/150"}
+              alt={currentUser.username}
               className="profile-picture"
             />
             <button
@@ -162,6 +169,7 @@ const Profile = () => {
                 const fileInput = document.createElement("input");
                 fileInput.type = "file";
                 fileInput.accept = "image/*";
+                fileInput.onchange = (ev) => handleAvatarUpload(ev as any);
                 fileInput.click();
               }}
             >
@@ -185,14 +193,14 @@ const Profile = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="displayName">Display Name</label>
+                <label htmlFor="headline">Headline</label>
                 <input
                   type="text"
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  id="headline"
+                  value={headline}
+                  onChange={(e) => setHeadline(e.target.value)}
                   className="form-control"
-                  placeholder="Your display name"
+                  placeholder="Your headline"
                 />
               </div>
 
@@ -234,19 +242,6 @@ const Profile = () => {
               </div>
 
               <hr />
-
-              <h3>Password</h3>
-              <div className="form-group">
-                <label htmlFor="currentPassword">Current Password</label>
-                <input
-                  type="password"
-                  id="currentPassword"
-                  value="••••••••"
-                  disabled
-                  className="form-control disabled"
-                />
-                <small>Password is hidden for security</small>
-              </div>
 
               <h3>Change Password</h3>
               <small>Leave blank to keep current password</small>
@@ -291,6 +286,28 @@ const Profile = () => {
                 </button>
               </div>
             </form>
+
+            {/* Account Linking Section (COMP 531) */}
+            <div
+              className="account-linking-section"
+              style={{
+                marginTop: "30px",
+                borderTop: "1px solid #eee",
+                paddingTop: "20px",
+              }}
+            >
+              <h3>Account Linking</h3>
+              <p>Link your account with Google to login with either method.</p>
+              <button
+                className="btn"
+                style={{ backgroundColor: "#db4437", color: "white" }}
+                onClick={() =>
+                  (window.location.href = "http://localhost:3000/auth/google")
+                }
+              >
+                Link Google Account
+              </button>
+            </div>
           </div>
         </div>
       </div>

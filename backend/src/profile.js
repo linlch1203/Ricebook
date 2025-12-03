@@ -1,5 +1,7 @@
 const Profile = require("./models/Profile");
 const isLoggedIn = require("./middleware/isLoggedIn");
+const uploadImage = require("./uploadCloudinary");
+const { upload } = require("./uploadCloudinary");
 
 const findProfile = async (username) => {
   const profile = await Profile.findOne({ username });
@@ -48,6 +50,21 @@ const getDob = async (req, res) => {
   }
 };
 
+const uploadAvatar = async (req, res) => {
+  const avatarUrl = req.file ? req.file.url : req.body.avatar;
+  if (!avatarUrl) {
+    return res.status(400).send({ error: "avatar is required" });
+  }
+
+  const profile = await Profile.findOneAndUpdate(
+    { username: req.username },
+    { avatar: avatarUrl },
+    { new: true }
+  );
+
+  return safeSend(res, { username: req.username, avatar: profile.avatar });
+};
+
 module.exports = (app) => {
   app.get(
     "/headline/:user?",
@@ -89,7 +106,13 @@ module.exports = (app) => {
     isLoggedIn,
     handleProfileField({ field: "avatar", mutable: false })
   );
-  app.put("/avatar", isLoggedIn, handleProfileField({ field: "avatar" }));
+  app.put(
+    "/avatar",
+    isLoggedIn,
+    upload.single("avatar"),
+    uploadImage(null),
+    uploadAvatar
+  );
 
   app.get("/dob", isLoggedIn, getDob);
 };

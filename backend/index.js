@@ -6,6 +6,7 @@ const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const { connectDb, disconnectDb } = require("./src/db");
 const { ensureTestUser } = require("./src/seed");
+const passport = require("./src/passport");
 
 const authRoutes = require("./src/auth");
 const profileRoutes = require("./src/profile");
@@ -18,9 +19,13 @@ const defaultOrigins = [
   "http://localhost:3000",
   "http://localhost:4200",
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:4200",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
 ];
 
 const envOrigins = process.env.ALLOWED_ORIGINS
@@ -42,6 +47,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(cookieParser());
+app.use(passport.initialize());
 
 app.get("/", (req, res) =>
   res.send({ service: "ricebook-backend", status: "ok" })

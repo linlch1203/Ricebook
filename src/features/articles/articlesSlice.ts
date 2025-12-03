@@ -1,171 +1,111 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
-  Post,
-  Comment,
-  fetchUserPosts,
-  fetchCommentsByPostId,
+  Article,
+  fetchArticles as apiFetchArticles,
+  addArticle as apiAddArticle,
+  updateArticle as apiUpdateArticle,
+  fetchFollowing as apiFetchFollowing,
+  addFollowing as apiAddFollowing,
+  removeFollowing as apiRemoveFollowing,
 } from "../../services/api";
-import {
-  selectUsers,
-  selectCurrentUser,
-  selectHeadlineByUserId,
-  selectPlaceholderUserIds,
-  type AuthState,
-} from "../auth/authSlice";
-
-export interface Article extends Post {
-  author: string;
-  timestamp: string;
-  headline: string;
-  comments: Comment[];
-}
 
 export interface ArticlesState {
   posts: Article[];
   filteredPosts: Article[];
+  following: string[];
   status: "idle" | "loading" | "failed";
   error: string | null;
-  followingIds: number[];
   searchKeyword: string;
 }
-
-type WithArticlesState = {
-  articles: ArticlesState;
-  auth: AuthState;
-} & Record<string, unknown>;
 
 const initialState: ArticlesState = {
   posts: [],
   filteredPosts: [],
+  following: [],
   status: "idle",
   error: null,
-  followingIds: [],
   searchKeyword: "",
 };
 
-const enhancePosts = async (
-  posts: Post[],
-  author: string,
-  headline: string
-): Promise<Article[]> => {
-  const enhanced = await Promise.all(
-    posts.map(async (post, index) => {
-      const comments = await fetchCommentsByPostId(post.id);
-      return {
-        ...post,
-        author,
-        headline,
-        timestamp: new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
-        comments,
-      };
-    })
-  );
-  return enhanced;
-};
-
-const mergeAndSort = (collections: Article[][]): Article[] => {
-  return collections
-    .flat()
-    .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
-};
-
-export const initializeFeed = createAsyncThunk<
-  { posts: Article[]; followingIds: number[] },
-  void,
-  { state: WithArticlesState }
->("articles/initializeFeed", async (_, { getState, rejectWithValue }) => {
-  const state = getState();
-  const currentUser = selectCurrentUser(state);
-  if (!currentUser) {
-    return rejectWithValue("User not logged in");
-  }
-
-  const users = selectUsers(state);
-  const placeholderUserIds = selectPlaceholderUserIds(state);
-  const placeholderUser = placeholderUserIds.includes(currentUser.id);
-
-  const followingIds: number[] = [];
-  if (placeholderUser) {
-    const otherUsers = users.filter((user) => user.id !== currentUser.id);
-    for (const candidate of otherUsers) {
-      if (!followingIds.includes(candidate.id)) {
-        followingIds.push(candidate.id);
-      }
-      if (followingIds.length === 3) {
-        break;
-      }
+export const initializeFeed = createAsyncThunk(
+  "articles/initializeFeed",
+  async (
+    {
+      page = 1,
+      limit = 10,
+      append = false,
+    }: { page?: number; limit?: number; append?: boolean } = {},
+    { rejectWithValue, dispatch }
+  ) => {
+    try {
+      const res = await apiFetchArticles(page, limit);
+      dispatch(fetchFollowing());
+      return { articles: res.articles, append };
+    } catch (err: any) {
+      return rejectWithValue(err.message);
     }
   }
+);
 
-  const lookupHeadline = (userId: number) =>
-    selectHeadlineByUserId(state, userId) ||
-    users.find((user) => user.id === userId)?.company.catchPhrase ||
-    "";
-
-  const basePosts = await enhancePosts(
-    await fetchUserPosts(currentUser.id),
-    currentUser.username,
-    lookupHeadline(currentUser.id)
-  );
-
-  const followerCollections: Article[][] = [];
-  for (const followerId of followingIds) {
-    const follower = users.find((user) => user.id === followerId);
-    if (!follower) {
-      continue;
+export const fetchFollowing = createAsyncThunk(
+  "articles/fetchFollowing",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await apiFetchFollowing();
+      return res.following;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
     }
-    const followerPosts = await fetchUserPosts(followerId);
-    followerCollections.push(
-      await enhancePosts(
-        followerPosts,
-        follower.username,
-        lookupHeadline(followerId)
-      )
-    );
   }
+);
 
-  return {
-    posts: mergeAndSort([basePosts, ...followerCollections]),
-    followingIds,
-  };
-});
-
-export const addFollowerByUsername = createAsyncThunk<
-  { userId: number; posts: Article[] },
-  string,
-  { state: WithArticlesState }
->(
-  "articles/addFollowerByUsername",
-  async (username, { getState, rejectWithValue }) => {
-    const trimmed = username.trim();
-    if (!trimmed) {
-      return rejectWithValue("Username required");
+export const addFollower = createAsyncThunk(
+  "articles/addFollower",
+  async (username: string, { rejectWithValue, dispatch }) => {
+    try {
+      const res = await apiAddFollowing(username);
+      dispatch(initializeFeed()); // Refresh feed to include new follower's posts
+      return res.following;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
     }
+  }
+);
 
-    const state = getState();
-    const users = selectUsers(state);
-    const follower = users.find(
-      (candidate) => candidate.username.toLowerCase() === trimmed.toLowerCase()
-    );
-
-    if (!follower) {
-      return rejectWithValue("User not found");
+export const removeFollower = createAsyncThunk(
+  "articles/removeFollower",
+  async (username: string, { rejectWithValue, dispatch }) => {
+    try {
+      const res = await apiRemoveFollowing(username);
+      dispatch(initializeFeed()); // Refresh feed
+      return res.following;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
     }
+  }
+);
 
-    if (state.articles.followingIds.includes(follower.id)) {
-      return rejectWithValue("Already following user");
+export const addArticle = createAsyncThunk(
+  "articles/addArticle",
+  async (formData: FormData, { rejectWithValue }) => {
+    try {
+      const res = await apiAddArticle(formData);
+      return res.articles;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
     }
+  }
+);
 
-    const posts = await fetchUserPosts(follower.id);
-    const headline =
-      selectHeadlineByUserId(state, follower.id) ||
-      follower.company.catchPhrase ||
-      "";
-
-    return {
-      userId: follower.id,
-      posts: await enhancePosts(posts, follower.username, headline),
-    };
+export const updateArticle = createAsyncThunk(
+  "articles/updateArticle",
+  async ({ id, text }: { id: number; text: string }, { rejectWithValue }) => {
+    try {
+      const res = await apiUpdateArticle(id, text);
+      return res.articles;
+    } catch (err: any) {
+      return rejectWithValue(err.message);
+    }
   }
 );
 
@@ -183,54 +123,14 @@ const articlesSlice = createSlice({
       state.filteredPosts = state.posts.filter((post) => {
         return (
           post.author.toLowerCase().includes(keyword) ||
-          post.title.toLowerCase().includes(keyword) ||
-          post.body.toLowerCase().includes(keyword)
+          post.text.toLowerCase().includes(keyword)
         );
       });
-    },
-    addLocalArticle(
-      state,
-      action: PayloadAction<{
-        body: string;
-        author: string;
-        userId: number;
-        headline: string;
-      }>
-    ) {
-      const { body, author, userId, headline } = action.payload;
-      const article: Article = {
-        userId,
-        id: Date.now(),
-        title: "New Post",
-        body,
-        author,
-        headline,
-        timestamp: new Date().toISOString(),
-        comments: [],
-      };
-      state.posts = [article, ...state.posts];
-      const keyword = state.searchKeyword.trim().toLowerCase();
-      const matchesKeyword =
-        !keyword ||
-        article.body.toLowerCase().includes(keyword) ||
-        article.author.toLowerCase().includes(keyword) ||
-        article.title.toLowerCase().includes(keyword);
-      state.filteredPosts = matchesKeyword
-        ? [article, ...state.filteredPosts]
-        : state.filteredPosts.slice();
-    },
-    removeFollower(state, action: PayloadAction<number>) {
-      const userId = action.payload;
-      state.followingIds = state.followingIds.filter((id) => id !== userId);
-      state.posts = state.posts.filter((post) => post.userId !== userId);
-      state.filteredPosts = state.filteredPosts.filter(
-        (post) => post.userId !== userId
-      );
     },
     resetArticles(state) {
       state.posts = [];
       state.filteredPosts = [];
-      state.followingIds = [];
+      state.following = [];
       state.searchKeyword = "";
       state.error = null;
       state.status = "idle";
@@ -244,55 +144,87 @@ const articlesSlice = createSlice({
       })
       .addCase(initializeFeed.fulfilled, (state, action) => {
         state.status = "idle";
-        state.posts = action.payload.posts;
-        state.filteredPosts = action.payload.posts.slice();
-        state.followingIds = action.payload.followingIds;
+        if (action.payload.append) {
+          const newPosts = action.payload.articles.filter(
+            (p) => !state.posts.some((existing) => existing.pid === p.pid)
+          );
+          state.posts = [...state.posts, ...newPosts];
+        } else {
+          state.posts = action.payload.articles;
+        }
+
+        state.filteredPosts = state.searchKeyword
+          ? state.posts.filter((post) => {
+              const keyword = state.searchKeyword.trim().toLowerCase();
+              return (
+                post.author.toLowerCase().includes(keyword) ||
+                post.text.toLowerCase().includes(keyword)
+              );
+            })
+          : state.posts.slice();
         state.error = null;
       })
       .addCase(initializeFeed.rejected, (state, action) => {
         state.status = "failed";
         state.error = (action.payload as string) ?? "Unable to load feed";
       })
-      .addCase(addFollowerByUsername.fulfilled, (state, action) => {
-        state.followingIds.push(action.payload.userId);
+      .addCase(fetchFollowing.fulfilled, (state, action) => {
+        state.following = action.payload;
+      })
+      .addCase(addFollower.fulfilled, (state, action) => {
+        state.following = action.payload;
         state.error = null;
-        state.posts = mergeAndSort([state.posts, action.payload.posts]);
+      })
+      .addCase(addFollower.rejected, (state, action) => {
+        state.error = (action.payload as string) ?? "Unable to add follower";
+      })
+      .addCase(removeFollower.fulfilled, (state, action) => {
+        state.following = action.payload;
+      })
+      .addCase(addArticle.fulfilled, (state, action) => {
+        state.posts = action.payload;
         state.filteredPosts = state.searchKeyword
           ? state.posts.filter((post) => {
               const keyword = state.searchKeyword.trim().toLowerCase();
               return (
                 post.author.toLowerCase().includes(keyword) ||
-                post.title.toLowerCase().includes(keyword) ||
-                post.body.toLowerCase().includes(keyword)
+                post.text.toLowerCase().includes(keyword)
               );
             })
           : state.posts.slice();
       })
-      .addCase(addFollowerByUsername.rejected, (state, action) => {
-        state.error = (action.payload as string) ?? "Unable to add follower";
-      })
-      .addCase(addFollowerByUsername.pending, (state) => {
-        state.error = null;
+      .addCase(updateArticle.fulfilled, (state, action) => {
+        const updatedArticles = action.payload;
+        updatedArticles.forEach((updated) => {
+          const index = state.posts.findIndex((p) => p.pid === updated.pid);
+          if (index !== -1) {
+            state.posts[index] = updated;
+          }
+        });
+        state.filteredPosts = state.searchKeyword
+          ? state.posts.filter((post) => {
+              const keyword = state.searchKeyword.trim().toLowerCase();
+              return (
+                post.author.toLowerCase().includes(keyword) ||
+                post.text.toLowerCase().includes(keyword)
+              );
+            })
+          : state.posts.slice();
       });
   },
 });
 
-export const {
-  filterByKeyword,
-  addLocalArticle,
-  removeFollower,
-  resetArticles,
-} = articlesSlice.actions;
+export const { filterByKeyword, resetArticles } = articlesSlice.actions;
 
-export const selectAllArticles = (state: WithArticlesState) =>
+export const selectAllArticles = (state: { articles: ArticlesState }) =>
   state.articles.posts;
-export const selectFilteredArticles = (state: WithArticlesState) =>
+export const selectFilteredArticles = (state: { articles: ArticlesState }) =>
   state.articles.filteredPosts;
-export const selectFollowingIds = (state: WithArticlesState) =>
-  state.articles.followingIds;
-export const selectArticlesError = (state: WithArticlesState) =>
+export const selectFollowing = (state: { articles: ArticlesState }) =>
+  state.articles.following;
+export const selectArticlesError = (state: { articles: ArticlesState }) =>
   state.articles.error;
-export const selectArticlesStatus = (state: WithArticlesState) =>
+export const selectArticlesStatus = (state: { articles: ArticlesState }) =>
   state.articles.status;
 
 export default articlesSlice.reducer;
