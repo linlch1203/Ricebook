@@ -4,7 +4,7 @@
 
 - **netid**: cl278
 - **frontend**: https://outrageous-table.surge.sh
-- **backend**: https://cl278-backend-ee56d2df6a76.herokuapp.com
+- **backend**: https://cl278-backend.herokuapp.com
 
 ## Test User
 
