@@ -96,7 +96,10 @@ module.exports = (app) => {
 
   app.get(
     "/auth/google/callback",
-    passport.authenticate("google", { failureRedirect: "/login", session: false }),
+    passport.authenticate("google", {
+      failureRedirect: "/login",
+      session: false,
+    }),
     async (req, res) => {
       const username = req.user.username;
 

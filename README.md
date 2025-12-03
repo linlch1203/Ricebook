@@ -1,4 +1,4 @@
-# Assignment 6 - Backend Implementation
+# Final Full Web App
 
 ## Student Information
 
@@ -87,7 +87,7 @@ src/
   - Register a new user.
   - Log in.
   - Update status headline.
-  - Post an article with an image.
+  - Post an article with an image (Note: The feed updates immediately without refreshing).
   - Follow a user (e.g., `joey`).
   - Check feed for your posts and followed user's posts.
   - Edit your post.

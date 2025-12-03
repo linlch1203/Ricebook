@@ -7,7 +7,7 @@ const { buildProfileDefaults } = require("./profileDefaults");
 const ensureTestUser = async () => {
   const username = "testuser1";
   const password = "12345678";
-  
+
   // 1. Ensure User exists
   let user = await User.findOne({ username });
   if (!user) {

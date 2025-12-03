@@ -265,8 +265,10 @@ const authSlice = createSlice({
 
 export const { resetAuthErrors } = authSlice.actions;
 
-export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
-export const selectHeadline = (state: { auth: AuthState }) => state.auth.user?.headline;
+export const selectCurrentUser = (state: { auth: AuthState }) =>
+  state.auth.user;
+export const selectHeadline = (state: { auth: AuthState }) =>
+  state.auth.user?.headline;
 export const selectAuthStatus = (state: { auth: AuthState }) =>
   state.auth.status;
 export const selectLoginError = (state: { auth: AuthState }) =>
