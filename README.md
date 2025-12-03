@@ -13,21 +13,34 @@
 
 ## Project Structure
 
-\`\`\`
+```
 backend/
 ├── src/
-│ ├── auth.js # Authentication routes (login, register, logout, google)
-│ ├── articles.js # Article routes (get, post, put)
-│ ├── profile.js # Profile routes (get, put)
-│ ├── following.js # Following routes (get, put, delete)
-│ ├── passport.js # Passport configuration
-│ ├── uploadCloudinary.js # Cloudinary middleware
-│ └── ...
-├── index.js # Main server entry point
-└── ...
-src/
-├── ... (Frontend source code)
-\`\`\`
+│   ├── auth.js             # Authentication routes (login, register, logout, google)
+│   ├── articles.js         # Article routes (get, post, put)
+│   ├── profile.js          # Profile routes (get, put)
+│   ├── following.js        # Following routes (get, put, delete)
+│   ├── passport.js         # Passport configuration
+│   ├── uploadCloudinary.js # Cloudinary middleware
+│   └── ...
+├── index.js                # Main server entry point
+└── package.json
+src/                        # Frontend Source
+├── app/
+│   ├── store.ts            # Redux store configuration
+│   └── hooks.ts            # Redux hooks
+├── components/
+│   ├── auth/               # Login/Register components
+│   ├── main/               # Main feed components
+│   └── profile/            # Profile page components
+├── features/
+│   ├── auth/               # Auth slice & logic
+│   └── articles/           # Articles slice & logic
+├── services/
+│   └── api.ts              # API integration
+├── App.tsx                 # Main App component
+└── main.tsx                # Entry point
+```
 
 ## Features Implemented
 
