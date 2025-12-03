@@ -11,6 +11,8 @@ import {
   selectRegistrationError,
 } from "../../features/auth/authSlice";
 
+import { API_BASE } from "../../services/api";
+
 const Landing = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -155,7 +157,7 @@ const Landing = () => {
                 width: "100%",
               }}
               onClick={() =>
-                (window.location.href = "http://localhost:3000/auth/google")
+                (window.location.href = `${API_BASE}/auth/google`)
               }
             >
               Login with Google

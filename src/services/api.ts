@@ -1,5 +1,5 @@
-const API_BASE = import.meta.env.PROD
-  ? "https://cl278-backend.herokuapp.com"
+export const API_BASE = import.meta.env.PROD
+  ? "https://cl278-backend-ee56d2df6a76.herokuapp.com"
   : "http://localhost:3000";
 
 export interface User {
