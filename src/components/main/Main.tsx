@@ -59,7 +59,7 @@ const Main = () => {
   }, [currentUser?.username, dispatch]);
 
   useEffect(() => {
-    setNewHeadline(headline);
+    setNewHeadline(headline || "");
   }, [headline]);
 
   const handleSearch = (query: string) => {

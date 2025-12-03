@@ -64,7 +64,7 @@ export const addFollower = createAsyncThunk(
   async (username: string, { rejectWithValue, dispatch }) => {
     try {
       const res = await apiAddFollowing(username);
-      dispatch(initializeFeed()); // Refresh feed to include new follower's posts
+      dispatch(initializeFeed({})); // Refresh feed to include new follower's posts
       return res.following;
     } catch (err: any) {
       return rejectWithValue(err.message);
@@ -77,7 +77,7 @@ export const removeFollower = createAsyncThunk(
   async (username: string, { rejectWithValue, dispatch }) => {
     try {
       const res = await apiRemoveFollowing(username);
-      dispatch(initializeFeed()); // Refresh feed
+      dispatch(initializeFeed({})); // Refresh feed
       return res.following;
     } catch (err: any) {
       return rejectWithValue(err.message);
